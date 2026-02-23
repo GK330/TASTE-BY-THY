@@ -72,7 +72,7 @@ export default function CartDrawer({ isOpen, onClose }) {
     }
   };
 
-  const sendOrder = () => { // Rendu synchrone pour éviter le blocage des popups
+  const sendOrder = async () => {
     if (cart.length === 0) return showToast("Votre panier est vide ! 🛒");
     if (!customerInfo.name || !customerInfo.phone || (deliveryMethod === 'delivery' && !gpsLink) || !customerInfo.deliveryTime) {
       return showToast("Veuillez remplir les infos et choisir votre position ! 📍");
@@ -99,61 +99,58 @@ export default function CartDrawer({ isOpen, onClose }) {
         message += ` - ${item.qty}x ${item.name}\n`;
     });
 
-    // --- Action immédiate : Ouvrir WhatsApp ---
-    window.open(`https://wa.me/22899434943?text=${encodeURIComponent(message)}`, '_blank');
-    showToast(`Commande envoyée ! +${pointsEarned} points gagnés 🎁`);
-
-    // --- Tâches asynchrones en arrière-plan ---
-    const saveOrderData = async () => {
-      try {
-        // --- Referral Logic ---
-        if (referralCode && currentUser) {
-          const { count } = await supabase.from('orders').select('*', { count: 'exact', head: true }).eq('customer_phone', currentUser.phone);
-          if (count === 0 && referralCode.trim() !== currentUser.phone) {
-            const { data: referrer } = await supabase.from('customers').select('loyalty_points').eq('phone', referralCode.trim()).single();
-            if (referrer) {
-              const newPoints = (referrer.loyalty_points || 0) + 50;
-              await supabase.from('customers').update({ loyalty_points: newPoints }).eq('phone', referralCode.trim());
-            }
+    // --- Sauvegarde des données (On attend que ce soit fini avant de partir) ---
+    try {
+      // --- Referral Logic ---
+      if (referralCode && currentUser) {
+        const { count } = await supabase.from('orders').select('*', { count: 'exact', head: true }).eq('customer_phone', currentUser.phone);
+        if (count === 0 && referralCode.trim() !== currentUser.phone) {
+          const { data: referrer } = await supabase.from('customers').select('loyalty_points').eq('phone', referralCode.trim()).single();
+          if (referrer) {
+            const newPoints = (referrer.loyalty_points || 0) + 50;
+            await supabase.from('customers').update({ loyalty_points: newPoints }).eq('phone', referralCode.trim());
           }
         }
-
-        // --- Points and Order saving ---
-        let currentPoints = loyaltyPoints;
-        if (usePoints && pointsDiscount > 0) {
-          currentPoints -= Math.ceil(pointsDiscount / POINT_VALUE);
-        }
-        currentPoints += pointsEarned;
-        setLoyaltyPoints(currentPoints);
-
-        const newOrder = {
-          id: Date.now(),
-          date: new Date().toISOString(),
-          items: cart,
-          total: finalTotal,
-          method: deliveryMethod,
-          customer_phone: currentUser?.phone,
-          status: 'pending',
-          referral_code: referralCode || null
-        };
-
-        let orderForHistory = newOrder;
-
-        if (currentUser) {
-          const { data: dbOrder } = await supabase.from('orders').insert({ ...newOrder, id: undefined, date: undefined }).select().single();
-          if (dbOrder) orderForHistory = dbOrder;
-          await supabase.from('customers').update({ loyalty_points: currentPoints }).eq('phone', currentUser.phone);
-        }
-
-        addOrderToHistory(orderForHistory);
-      } catch (error) {
-        console.error("Erreur lors de la sauvegarde de la commande en arrière-plan:", error);
       }
-    };
 
-    saveOrderData();
+      // --- Points and Order saving ---
+      let currentPoints = loyaltyPoints;
+      if (usePoints && pointsDiscount > 0) {
+        currentPoints -= Math.ceil(pointsDiscount / POINT_VALUE);
+      }
+      currentPoints += pointsEarned;
+      setLoyaltyPoints(currentPoints);
 
-    // --- Nettoyage immédiat de l'interface ---
+      const newOrder = {
+        id: Date.now(),
+        date: new Date().toISOString(),
+        items: cart,
+        total: finalTotal,
+        method: deliveryMethod,
+        customer_phone: currentUser?.phone,
+        status: 'pending',
+        referral_code: referralCode || null
+      };
+
+      let orderForHistory = newOrder;
+
+      if (currentUser) {
+        const { data: dbOrder } = await supabase.from('orders').insert({ ...newOrder, id: undefined, date: undefined }).select().single();
+        if (dbOrder) orderForHistory = dbOrder;
+        await supabase.from('customers').update({ loyalty_points: currentPoints }).eq('phone', currentUser.phone);
+      }
+
+      addOrderToHistory(orderForHistory);
+    } catch (error) {
+      console.error("Erreur lors de la sauvegarde:", error);
+      showToast("Erreur de connexion, mais on ouvre WhatsApp quand même !");
+    }
+
+    // --- Action Finale : Redirection WhatsApp (Compatible Safari) ---
+    // window.location.href est beaucoup plus fiable sur mobile que window.open
+    window.location.href = `https://wa.me/22899434943?text=${encodeURIComponent(message)}`;
+    
+    showToast(`Commande envoyée ! +${pointsEarned} points gagnés 🎁`);
     setCart([]); // Vider le panier après la commande
     onClose();
   };

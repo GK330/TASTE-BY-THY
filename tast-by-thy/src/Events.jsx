@@ -138,7 +138,7 @@ export default function Events({ onNavigate }) {
     }
   };
 
-  const sendQuoteRequest = () => {
+  const sendQuoteRequest = async () => {
     if (!date || !customerInfo.name || !customerInfo.phone) {
       showToast("Veuillez remplir la date et vos coordonnées ! 📝");
       return;
@@ -146,13 +146,13 @@ export default function Events({ onNavigate }) {
 
     // Sauvegarde Supabase
     if (currentUser) {
-      supabase.from('event_requests').insert({
+      await supabase.from('event_requests').insert({
         customer_phone: currentUser.phone,
         event_date: date,
         guests: guests,
         theme: theme,
         details: customerInfo
-      }).then(({ error }) => { if (error) console.error(error); });
+      });
     }
 
     const message = `👋 *DEMANDE DE DEVIS - TASTE BY THY*\n` +
@@ -164,7 +164,7 @@ export default function Events({ onNavigate }) {
       `🎨 *Thème :* ${theme || 'Non spécifié'}\n` +
       (gpsLink ? `🌍 *Localisation :* ${gpsLink}\n` : `📍 *Lieu :* À définir\n`);
     
-    window.open(`https://wa.me/22899434943?text=${encodeURIComponent(message)}`, '_blank');
+    window.location.href = `https://wa.me/22899434943?text=${encodeURIComponent(message)}`;
     showToast("Votre demande a été préparée pour WhatsApp !");
   };
 
