@@ -144,15 +144,12 @@ export default function CartDrawer({ isOpen, onClose }) {
     addOrderToHistory(orderForHistory);
 
     const onPdfGenerated = () => {
-      let message = `👋 *NOUVELLE COMMANDE - TASTE BY THY*\n--------------------------------\n👤 *Client :* ${customerInfo.name}\n📞 *Tél :* ${customerInfo.phone}\n💰 *TOTAL : ${finalTotal.toLocaleString()} F CFA*\n`;
+      let message = "";
       if (deliveryMethod === 'delivery') {
-        message += `🌍 *Localisation :* ${gpsLink}\n`;
+        message = `📍 *Ma position :* ${gpsLink}\n\n📄 *Commande :* Voir le PDF ci-joint.`;
       } else {
-        message += `🛍️ *Mode :* À emporter (Pickup)\n`;
+        message = `🛍️ *Commande à emporter*\n\n📄 *Commande :* Voir le PDF ci-joint.`;
       }
-      if (kitchenNotes) message += `📝 *Note cuisine :* ${kitchenNotes}\n`;
-      if (usePoints && pointsDiscount > 0) message += `🎁 *Points utilisés :* -${pointsDiscount.toLocaleString()} F\n`;
-      message += "\n📎 *IMPORTANT :* J'ai joint le reçu PDF avec le détail de la commande.";
 
       window.open(`https://wa.me/22899434943?text=${encodeURIComponent(message)}`, '_blank');
       showToast(`PDF téléchargé ! +${pointsEarned} points gagnés 🎁`);
@@ -256,13 +253,10 @@ export default function CartDrawer({ isOpen, onClose }) {
             </>
           ) : (
             <div className="flex flex-col gap-3">
-              <button onClick={() => downloadReceipt({ cart, customerInfo, finalTotal, deliveryMethod, deliveryZone, usePoints, pointsDiscount, kitchenNotes })} className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-marron bg-transparent p-3 font-bold text-marron hover:bg-marron hover:text-white transition-colors">
-                <i className="fa-solid fa-file-pdf"></i> Télécharger le reçu PDF
-              </button>
               <div className="flex gap-3">
                 <button onClick={() => setCheckoutStep(0)} className="rounded-xl border border-gray-300 px-4 py-3 text-gray-600 hover:bg-gray-50"><i className="fa-solid fa-arrow-left"></i></button>
-                <button className="flex-1 flex cursor-pointer items-center justify-center gap-2.5 rounded-xl bg-[#25D366] p-4 text-base font-semibold text-white hover:bg-[#20ba5a]" onClick={sendOrder}>
-                  <i className="fa-brands fa-whatsapp"></i> Valider la commande
+                <button className="flex-1 flex cursor-pointer items-center justify-center gap-2.5 rounded-xl bg-[#25D366] p-4 text-base font-semibold text-white hover:bg-[#20ba5a]" onClick={sendOrder} title="Télécharge le reçu et ouvre WhatsApp">
+                  <i className="fa-brands fa-whatsapp"></i> Envoyer la commande
                 </button>
               </div>
             </div>

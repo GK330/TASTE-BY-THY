@@ -142,7 +142,7 @@ export default function Menu({ onNavigate }) {
 
       {/* CONFIRMATION SUGGESTION MODAL */}
       {pendingSuggestion && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setPendingSuggestion(null)}>
+        <div className="fixed inset-0 z-[2100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={() => setPendingSuggestion(null)}>
           <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl animate-bump" onClick={e => e.stopPropagation()}>
             <h3 className="mb-2 text-xl font-bold text-marron text-center">Une petite envie ? 😋</h3>
             <p className="mb-6 text-center text-gray-600">
