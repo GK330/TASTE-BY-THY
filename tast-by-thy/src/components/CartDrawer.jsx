@@ -72,104 +72,88 @@ export default function CartDrawer({ isOpen, onClose }) {
     }
   };
 
-  const sendOrder = async () => {
+  const sendOrder = () => { // Rendu synchrone pour éviter le blocage des popups
     if (cart.length === 0) return showToast("Votre panier est vide ! 🛒");
     if (!customerInfo.name || !customerInfo.phone || (deliveryMethod === 'delivery' && !gpsLink) || !customerInfo.deliveryTime) {
       return showToast("Veuillez remplir les infos et choisir votre position ! 📍");
     }
 
-    // --- Referral Logic ---
-    if (referralCode && currentUser) {
-      // Check if it's the user's first order
-      const { count, error: countError } = await supabase
-        .from('orders')
-        .select('*', { count: 'exact', head: true })
-        .eq('customer_phone', currentUser.phone);
-
-      if (countError) {
-        console.error("Error checking order count:", countError);
-      }
-
-      // If it's the first order (count is 0) and the referral code is valid and not their own
-      if (count === 0 && referralCode.trim() !== currentUser.phone) {
-        // Find the referrer
-        const { data: referrer, error: referrerError } = await supabase
-          .from('customers')
-          .select('loyalty_points')
-          .eq('phone', referralCode.trim())
-          .single();
-
-        if (referrer) {
-          // Award points to the referrer
-          const newPoints = (referrer.loyalty_points || 0) + 50;
-          await supabase
-            .from('customers')
-            .update({ loyalty_points: newPoints })
-            .eq('phone', referralCode.trim());
-          
-          showToast("Parrainage réussi ! Votre ami a gagné 50 points. 🎉");
-        }
-      }
-    }
-
-    let currentPoints = loyaltyPoints;
-    if (usePoints && pointsDiscount > 0) {
-      currentPoints -= Math.ceil(pointsDiscount / POINT_VALUE);
-    }
-    const pointsEarned = Math.floor(finalTotal / 100);
-    currentPoints += pointsEarned;
-    setLoyaltyPoints(currentPoints);
-
-    const newOrder = {
-      id: Date.now(),
-      date: new Date().toISOString(),
-      items: cart,
-      total: finalTotal,
-      method: deliveryMethod,
-      customer_phone: currentUser?.phone,
-      status: 'pending', // Statut initial : Commande reçue 🟠
-      referral_code: referralCode || null
-    };
-
-    let orderForHistory = newOrder;
-
-    if (currentUser) {
-      // On insère et on récupère la donnée insérée (avec le vrai ID et le statut)
-      const { data } = await supabase.from('orders').insert({ ...newOrder, id: undefined, date: undefined }).select().single();
-      if (data) orderForHistory = data;
-      
-      await supabase.from('customers').update({ loyalty_points: currentPoints }).eq('phone', currentUser.phone);
-    }
-
-    addOrderToHistory(orderForHistory);
-
     // --- WhatsApp Message Construction ---
+    const pointsEarned = Math.floor(finalTotal / 100);
     let message = `👋 *NOUVELLE COMMANDE - TASTE BY THY*\n`;
     message += `--------------------------------\n`;
     message += `👤 *Client :* ${customerInfo.name}\n`;
     message += `📞 *Tél :* ${customerInfo.phone}\n`;
     message += `💰 *TOTAL : ${finalTotal.toLocaleString()} F CFA*\n`;
-    
     if (deliveryMethod === 'delivery') {
       if (gpsLink) message += `🌍 *Localisation :* ${gpsLink}\n`;
     } else {
       message += `🛍️ *Mode :* À emporter (Pickup)\n`;
     }
-
     if (kitchenNotes) message += `📝 *Note cuisine :* ${kitchenNotes}\n`;
-    
     if (usePoints && pointsDiscount > 0) {
       message += `🎁 *Points utilisés :* -${pointsDiscount.toLocaleString()} F\n`;
     }
-
     message += `\n*Détail de la commande :*\n`;
     cart.forEach(item => {
         message += ` - ${item.qty}x ${item.name}\n`;
     });
 
-    // --- Final Actions ---
+    // --- Action immédiate : Ouvrir WhatsApp ---
     window.open(`https://wa.me/22899434943?text=${encodeURIComponent(message)}`, '_blank');
     showToast(`Commande envoyée ! +${pointsEarned} points gagnés 🎁`);
+
+    // --- Tâches asynchrones en arrière-plan ---
+    const saveOrderData = async () => {
+      try {
+        // --- Referral Logic ---
+        if (referralCode && currentUser) {
+          const { count } = await supabase.from('orders').select('*', { count: 'exact', head: true }).eq('customer_phone', currentUser.phone);
+          if (count === 0 && referralCode.trim() !== currentUser.phone) {
+            const { data: referrer } = await supabase.from('customers').select('loyalty_points').eq('phone', referralCode.trim()).single();
+            if (referrer) {
+              const newPoints = (referrer.loyalty_points || 0) + 50;
+              await supabase.from('customers').update({ loyalty_points: newPoints }).eq('phone', referralCode.trim());
+            }
+          }
+        }
+
+        // --- Points and Order saving ---
+        let currentPoints = loyaltyPoints;
+        if (usePoints && pointsDiscount > 0) {
+          currentPoints -= Math.ceil(pointsDiscount / POINT_VALUE);
+        }
+        currentPoints += pointsEarned;
+        setLoyaltyPoints(currentPoints);
+
+        const newOrder = {
+          id: Date.now(),
+          date: new Date().toISOString(),
+          items: cart,
+          total: finalTotal,
+          method: deliveryMethod,
+          customer_phone: currentUser?.phone,
+          status: 'pending',
+          referral_code: referralCode || null
+        };
+
+        let orderForHistory = newOrder;
+
+        if (currentUser) {
+          const { data: dbOrder } = await supabase.from('orders').insert({ ...newOrder, id: undefined, date: undefined }).select().single();
+          if (dbOrder) orderForHistory = dbOrder;
+          await supabase.from('customers').update({ loyalty_points: currentPoints }).eq('phone', currentUser.phone);
+        }
+
+        addOrderToHistory(orderForHistory);
+      } catch (error) {
+        console.error("Erreur lors de la sauvegarde de la commande en arrière-plan:", error);
+      }
+    };
+
+    saveOrderData();
+
+    // --- Nettoyage immédiat de l'interface ---
     setCart([]); // Vider le panier après la commande
     onClose();
   };

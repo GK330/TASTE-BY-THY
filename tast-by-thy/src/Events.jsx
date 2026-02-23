@@ -155,33 +155,17 @@ export default function Events({ onNavigate }) {
       }).then(({ error }) => { if (error) console.error(error); });
     }
 
-    const message = `📋 *DEMANDE DE DEVIS*\n` +
-      `*Taste By Thy* 🎉\n` +
+    const message = `👋 *DEMANDE DE DEVIS - TASTE BY THY*\n` +
       `--------------------------------\n` +
       `👤 *Client :* ${customerInfo.name}\n` +
       `📞 *Tél :* ${customerInfo.phone}\n` +
       `📅 *Date :* ${date} à ${customerInfo.time || '???'}\n` +
-      `--------------------------------\n` +
       `👥 *Invités :* ${guests} pers.\n` +
-      `🧁 *Besoin estimé :* ~${totalPieces} pièces\n` +
       `🎨 *Thème :* ${theme || 'Non spécifié'}\n` +
-      `--------------------------------\n` +
-      (gpsLink ? `🌍 *Lieu (GPS) :* ${gpsLink}\n` : `📍 *Lieu :* À définir\n`) +
-      `\nMerci de me recontacter pour le devis !`;
+      (gpsLink ? `🌍 *Localisation :* ${gpsLink}\n` : `📍 *Lieu :* À définir\n`);
     
     window.open(`https://wa.me/22899434943?text=${encodeURIComponent(message)}`, '_blank');
-    downloadQuote(() => {
-      const message = `👋 *DEMANDE DE DEVIS - TASTE BY THY*\n` +
-        `--------------------------------\n` +
-        `👤 *Client :* ${customerInfo.name}\n` +
-        `📅 *Date :* ${date}\n` +
-        `👥 *Invités :* ${guests} pers.\n` +
-        (gpsLink ? `🌍 *Localisation :* ${gpsLink}\n` : `📍 *Lieu :* À définir\n`) +
-        `\n📎 *Détails :* Voir le PDF ci-joint (Estimation incluse).`;
-      
-      window.open(`https://wa.me/22899434943?text=${encodeURIComponent(message)}`, '_blank');
-      showToast("PDF téléchargé ! Joignez-le à votre message WhatsApp 📎");
-    });
+    showToast("Votre demande a été préparée pour WhatsApp !");
   };
 
   const downloadQuote = (onComplete) => {
